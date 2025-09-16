@@ -1,0 +1,44 @@
+{
+  "name": "NF — Full Router",
+  "nodes": [
+    {
+      "parameters": {
+        "functionCode": "// Forward router jobs into your Hub CommandRelay\nconst item = $json;\nitem.result = { ok:true, routed:true, finishedAt:new Date().toISOString() };\nreturn [{ json:item }];"
+      },
+      "id": "fn_router",
+      "name": "Router Handler",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [-240, -40]
+    },
+    {
+      "parameters": {
+        "url": "https://script.google.com/macros/s/AKfycbzcY4EdMsxqLyF9_L0TLxJnxJBG74hvFrJ148nVUPOcByGBBbuUhVk692z6Xdrtso3n/exec?cmd=queue.push",
+        "options": {},
+        "jsonParameters": true,
+        "sendBody": true,
+        "bodyParametersJson": "={ $json }",
+        "authentication": "none"
+      },
+      "id": "http1",
+      "name": "Push → Hub (queue.push)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [40, -40]
+    },
+    {
+      "parameters": {
+        "functionCode": "const item = $json;\nitem.result = { ok:true, acked:true, finishedAt:new Date().toISOString() };\nreturn [{ json:item }];"
+      },
+      "id": "fn_ack",
+      "name": "ACK Result",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [300, -40]
+    }
+  ],
+  "connections": {
+    "Router Handler": { "main": [[{ "node": "Push → Hub (queue.push)", "type": "main", "index": 0 }]] },
+    "Push → Hub (queue.push)": { "main": [[{ "node": "ACK Result", "type": "main", "index": 0 }]] }
+  }
+}

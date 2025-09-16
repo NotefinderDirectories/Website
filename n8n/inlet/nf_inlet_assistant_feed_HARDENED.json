@@ -1,0 +1,115 @@
+{
+  "name": "NF — Inlet (assistant-feed, HARDENED)",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "assistant-feed",
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "wh1",
+      "name": "Webhook: /assistant-feed",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-980, -40]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Auth Gate — validates X-NoteFinder-Token header\nconst headers = $json.headers || {};\nconst got = String(headers['x-notefinder-token'] || headers['X-NoteFinder-Token'] || '');\nconst EXPECTED = 'NOTEFINDER_SYNC_TOKEN_01';\nif (!got || got !== EXPECTED) {\n  return [ [ { json: { ok:false, code:401, error:'invalid or missing token' } } ], [] ];\n}\n// Pass-thru to OK branch\nreturn [ [ { json: $json } ], [] ];"
+      },
+      "id": "auth1",
+      "name": "Auth Gate",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [-780, -40],
+      "notesInFlow": true,
+      "notes": "Rejects requests without correct X-NoteFinder-Token"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Normalize & stamp the inbound payload\nconst body = $json.body || $json || {};\nconst payload = body.payload || body || {};\nconst now = Date.now();\nconst startedAt = new Date(now).toISOString();\nreturn [{\n  json: {\n    jobId: body.jobId || `wh_${now}`,\n    leaseId: body.leaseId || `wh_${now}`,\n    payload,\n    _source: 'webhook',\n    meta: {\n      ip: ($json.headers && ($json.headers['x-forwarded-for'] || $json.headers['cf-connecting-ip'])) || null,\n      ua: $json.headers && $json.headers['user-agent'] || null,\n      startedAt\n    }\n  }\n}];"
+      },
+      "id": "fn1",
+      "name": "Payload Processor",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [-540, -40]
+    },
+    {
+      "parameters": {
+        "propertyName": "payload.type",
+        "dataType": "string",
+        "rules": {
+          "values": [
+            { "operation": "equal", "value": "shopify" },
+            { "operation": "equal", "value": "tiktok" },
+            { "operation": "equal", "value": "certapi" },
+            { "operation": "equal", "value": "wiw" },
+            { "operation": "equal", "value": "reon" },
+            { "operation": "equal", "value": "router" },
+            { "operation": "equal", "value": "log" }
+          ]
+        }
+      },
+      "id": "sw1",
+      "name": "Switch: payload.type",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [-300, -40]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Replace this block later with real handlers per type\nconst item = $json;\nitem.result = {\n  ok: true,\n  stub: true,\n  handledBy: item.payload?.type || 'unknown',\n  note: `Processed ${item.payload?.type || 'unknown'}`,\n  finishedAt: new Date().toISOString()\n};\nreturn [{ json: item }];"
+      },
+      "id": "fn2",
+      "name": "Do work — stub",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [-40, -40]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{ $json }}",
+        "responseCode": 200
+      },
+      "id": "resp_ok",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [180, -40]
+    },
+    {
+      "parameters": {
+        "responseBody": "{\"ok\":false,\"error\":\"unauthorized\"}",
+        "responseCode": 401
+      },
+      "id": "resp_401",
+      "name": "Respond 401",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [-540, 160]
+    }
+  ],
+  "connections": {
+    "Webhook: /assistant-feed": { "main": [[{ "node": "Auth Gate", "type": "main", "index": 0 }]] },
+    "Auth Gate": {
+      "main": [
+        [{ "node": "Payload Processor", "type": "main", "index": 0 }],
+        [{ "node": "Respond 401", "type": "main", "index": 0 }]
+      ]
+    },
+    "Payload Processor": { "main": [[{ "node": "Switch: payload.type", "type": "main", "index": 0 }]] },
+    "Switch: payload.type": {
+      "main": [
+        [{ "node": "Do work — stub", "type": "main", "index": 0 }],
+        [{ "node": "Do work — stub", "type": "main", "index": 0 }],
+        [{ "node": "Do work — stub", "type": "main", "index": 0 }],
+        [{ "node": "Do work — stub", "type": "main", "index": 0 }],
+        [{ "node": "Do work — stub", "type": "main", "index": 0 }],
+        [{ "node": "Do work — stub", "type": "main", "index": 0 }],
+        [{ "node": "Do work — stub", "type": "main", "index": 0 }]
+      ]
+    },
+    "Do work — stub": { "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]] }
+  }
+}

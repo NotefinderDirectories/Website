@@ -1,0 +1,59 @@
+{
+  "name": "NF — Shopify Loader",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "nf/shopify-load",
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "wh_shopify",
+      "name": "Webhook: /nf/shopify-load",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-780, -40]
+    },
+    {
+      "parameters": {
+        "functionCode": "// normalize\nconst b = $json.body || $json || {};\nconst now = Date.now();\nreturn [{ json: {\n  jobId: b.jobId || `shopify_${now}`,\n  leaseId: b.leaseId || `shopify_${now}`,\n  payload: Object.assign({type:'shopify'}, b.payload || b || {}),\n  type: 'shopify',\n  meta: { startedAt: new Date(now).toISOString() }\n}}];"
+      },
+      "id": "fn_shape",
+      "name": "Shape Payload",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [-520, -40]
+    },
+    {
+      "parameters": {
+        "url": "https://script.google.com/macros/s/AKfycbzcY4EdMsxqLyF9_L0TLxJnxJBG74hvFrJ148nVUPOcByGBBbuUhVk692z6Xdrtso3n/exec?cmd=queue.push",
+        "jsonParameters": true,
+        "sendBody": true,
+        "bodyParametersJson": "={{$json}}",
+        "options": {
+          "headers": { "X-NoteFinder-Token": "NOTEFINDER_SYNC_TOKEN_01" }
+        }
+      },
+      "id": "http_push",
+      "name": "Push → Hub (queue.push)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [-260, -40]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{ Object.assign($json, {result:{ok:true, queued:'shopify', finishedAt:new Date().toISOString()}}) }}",
+        "responseCode": 200
+      },
+      "id": "resp_ok",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [40, -40]
+    }
+  ],
+  "connections": {
+    "Webhook: /nf/shopify-load": { "main": [[{ "node": "Shape Payload", "type": "main", "index": 0 }]] },
+    "Shape Payload": { "main": [[{ "node": "Push → Hub (queue.push)", "type": "main", "index": 0 }]] },
+    "Push → Hub (queue.push)": { "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]] }
+  }
+}

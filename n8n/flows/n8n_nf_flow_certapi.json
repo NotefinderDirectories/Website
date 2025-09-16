@@ -1,0 +1,59 @@
+{
+  "name": "NF — CertAPI",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "nf/certapi",
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      },
+      "id": "wh_cert",
+      "name": "Webhook: /nf/certapi",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [-780, -40]
+    },
+    {
+      "parameters": {
+        "functionCode": "const b = $json.body || $json || {};\nconst now = Date.now();\nreturn [{ json: {\n  jobId: b.jobId || `certapi_${now}`,\n  leaseId: b.leaseId || `certapi_${now}`,\n  payload: Object.assign({type:'certapi'}, b.payload || b || {}),\n  type: 'certapi',\n  meta: { startedAt: new Date(now).toISOString() }\n}}];"
+      },
+      "id": "fn_shape",
+      "name": "Shape Payload",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [-520, -40]
+    },
+    {
+      "parameters": {
+        "url": "https://script.google.com/macros/s/AKfycbzcY4EdMsxqLyF9_L0TLxJnxJBG74hvFrJ148nVUPOcByGBBbuUhVk692z6Xdrtso3n/exec?cmd=queue.push",
+        "jsonParameters": true,
+        "sendBody": true,
+        "bodyParametersJson": "={{$json}}",
+        "options": {
+          "headers": { "X-NoteFinder-Token": "NOTEFINDER_SYNC_TOKEN_01" }
+        }
+      },
+      "id": "http_push",
+      "name": "Push → Hub (queue.push)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [-260, -40]
+    },
+    {
+      "parameters": {
+        "responseBody": "={{ Object.assign($json, {result:{ok:true, queued:'certapi', finishedAt:new Date().toISOString()}}) }}",
+        "responseCode": 200
+      },
+      "id": "resp_ok",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [40, -40]
+    }
+  ],
+  "connections": {
+    "Webhook: /nf/certapi": { "main": [[{ "node": "Shape Payload", "type": "main", "index": 0 }]] },
+    "Shape Payload": { "main": [[{ "node": "Push → Hub (queue.push)", "type": "main", "index": 0 }]] },
+    "Push → Hub (queue.push)": { "main": [[{ "node": "Respond 200", "type": "main", "index": 0 }]] }
+  }
+}
